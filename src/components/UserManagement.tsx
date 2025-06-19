@@ -8,16 +8,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { UserPlus, Trash2, Users } from 'lucide-react';
+import { UserPlus, Trash2, Users, Building } from 'lucide-react';
 
 const UserManagement: React.FC = () => {
-  const { users, addUser, removeUser, currentUser } = useAuth();
+  const { users, addUser, removeUser, currentUser, homes, assignUserToHome } = useAuth();
   const { toast } = useToast();
   const [newUser, setNewUser] = useState({
     name: '',
     email: '',
-    role: 'user' as 'admin' | 'user',
-    devices: [] as string[]
+    role: 'user' as 'admin' | 'user'
   });
 
   const handleAddUser = (e: React.FormEvent) => {
@@ -32,7 +31,7 @@ const UserManagement: React.FC = () => {
     }
 
     addUser(newUser);
-    setNewUser({ name: '', email: '', role: 'user', devices: [] });
+    setNewUser({ name: '', email: '', role: 'user' });
     toast({
       title: "Success",
       description: "User added successfully",
@@ -53,6 +52,20 @@ const UserManagement: React.FC = () => {
       title: "Success",
       description: "User removed successfully",
     });
+  };
+
+  const handleAssignToHome = (userId: string, homeId: string) => {
+    assignUserToHome(userId, homeId);
+    toast({
+      title: "Success",
+      description: "User assigned to home successfully",
+    });
+  };
+
+  const getUserHome = (userId: string) => {
+    const user = users.find(u => u.id === userId);
+    if (!user?.homeId) return null;
+    return homes.find(h => h.id === user.homeId);
   };
 
   return (
@@ -120,33 +133,60 @@ const UserManagement: React.FC = () => {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {users.map((user) => (
-              <div key={user.id} className="flex items-center justify-between p-4 bg-gray-800 rounded-lg">
-                <div>
-                  <h3 className="font-medium text-white">{user.name}</h3>
-                  <p className="text-sm text-gray-400">{user.email}</p>
-                  <div className="flex gap-2 mt-2">
-                    <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>
-                      {user.role}
-                    </Badge>
-                    {user.id === currentUser?.id && (
-                      <Badge variant="outline" className="border-green-500 text-green-400">
-                        Current User
+            {users.map((user) => {
+              const userHome = getUserHome(user.id);
+              return (
+                <div key={user.id} className="flex items-center justify-between p-4 bg-gray-800 rounded-lg">
+                  <div className="flex-1">
+                    <h3 className="font-medium text-white">{user.name}</h3>
+                    <p className="text-sm text-gray-400">{user.email}</p>
+                    <div className="flex gap-2 mt-2 flex-wrap">
+                      <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>
+                        {user.role}
                       </Badge>
+                      {user.id === currentUser?.id && (
+                        <Badge variant="outline" className="border-green-500 text-green-400">
+                          Current User
+                        </Badge>
+                      )}
+                      {userHome && (
+                        <Badge variant="outline" className="border-blue-500 text-blue-400">
+                          <Building className="h-3 w-3 mr-1" />
+                          {userHome.name}
+                        </Badge>
+                      )}
+                    </div>
+                    
+                    {user.role === 'user' && !user.homeId && homes.length > 0 && (
+                      <div className="mt-2">
+                        <Select onValueChange={(homeId) => handleAssignToHome(user.id, homeId)}>
+                          <SelectTrigger className="w-48 bg-gray-700 border-gray-600 text-white text-xs">
+                            <SelectValue placeholder="Assign to home" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-gray-700 border-gray-600">
+                            {homes.map((home) => (
+                              <SelectItem key={home.id} value={home.id}>
+                                {home.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     )}
                   </div>
+                  
+                  {user.id !== currentUser?.id && (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleRemoveUser(user.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
-                {user.id !== currentUser?.id && (
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => handleRemoveUser(user.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </CardContent>
       </Card>
