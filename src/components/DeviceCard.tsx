@@ -1,9 +1,8 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import { Lamp, DoorClosed, DoorOpen, Window, Bell } from 'lucide-react';
+import { Lamp, DoorClosed, DoorOpen, RectangleHorizontal, Bell } from 'lucide-react';
 
 interface DeviceCardProps {
   title: string;
@@ -29,7 +28,7 @@ const DeviceCard: React.FC<DeviceCardProps> = ({
           <DoorOpen className="h-6 w-6 text-red-400" /> : 
           <DoorClosed className="h-6 w-6 text-green-400" />;
       case 'window':
-        return <Window className={`h-6 w-6 ${status ? 'text-blue-400' : 'text-gray-400'}`} />;
+        return <RectangleHorizontal className={`h-6 w-6 ${status ? 'text-blue-400' : 'text-gray-400'}`} />;
       case 'motion':
         return <Bell className={`h-6 w-6 ${status ? 'text-red-500 animate-pulse' : 'text-gray-400'}`} />;
       default:
