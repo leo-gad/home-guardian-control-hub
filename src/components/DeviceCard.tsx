@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
@@ -22,13 +23,13 @@ const DeviceCard: React.FC<DeviceCardProps> = ({
   const getIcon = () => {
     switch (type) {
       case 'lamp':
-        return <Lamp className={`h-6 w-6 ${status ? 'text-yellow-400' : 'text-gray-400'}`} />;
+        return <Lamp className={`h-6 w-6 transition-colors duration-300 ${status ? 'text-yellow-400' : 'text-gray-400'}`} />;
       case 'door':
         return status ? 
-          <DoorOpen className="h-6 w-6 text-red-400" /> : 
-          <DoorClosed className="h-6 w-6 text-green-400" />;
+          <DoorOpen className="h-6 w-6 text-red-400 transition-colors duration-300" /> : 
+          <DoorClosed className="h-6 w-6 text-green-400 transition-colors duration-300" />;
       case 'window':
-        return <RectangleHorizontal className={`h-6 w-6 ${status ? 'text-blue-400' : 'text-gray-400'}`} />;
+        return <RectangleHorizontal className={`h-6 w-6 transition-colors duration-300 ${status ? 'text-blue-400' : 'text-gray-400'}`} />;
       case 'motion':
         return <Bell className={`h-6 w-6 ${status ? 'text-red-500 animate-pulse' : 'text-gray-400'}`} />;
       default:
@@ -69,14 +70,14 @@ const DeviceCard: React.FC<DeviceCardProps> = ({
       </CardHeader>
       <CardContent>
         <div className="flex items-center justify-between">
-          <Badge variant={getStatusColor()} className="mb-2">
+          <Badge variant={getStatusColor()} className="mb-2 transition-colors duration-300">
             {getStatusText()}
           </Badge>
           {canControl && type !== 'motion' && onToggle && (
             <Switch
               checked={status}
               onCheckedChange={onToggle}
-              className="data-[state=checked]:bg-blue-500"
+              className="data-[state=checked]:bg-blue-500 transition-all duration-300"
             />
           )}
         </div>

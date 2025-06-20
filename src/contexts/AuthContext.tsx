@@ -7,6 +7,7 @@ interface User {
   role: 'admin' | 'user';
   homeId?: string;
   password?: string;
+  profileImage?: string;
 }
 
 interface Home {

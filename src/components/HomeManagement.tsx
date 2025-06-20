@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Home, Plus, Trash2, Users, Settings } from 'lucide-react';
+import { Home, Plus, Trash2, Users, Settings, AlertCircle } from 'lucide-react';
 
 const HomeManagement: React.FC = () => {
   const { homes, users, createHome, deleteHome, assignUserToHome } = useAuth();
@@ -24,6 +23,10 @@ const HomeManagement: React.FC = () => {
     }
   });
 
+  const getUnassignedUsers = () => {
+    return users.filter(user => user.role === 'user' && !user.homeId);
+  };
+
   const handleCreateHome = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newHome.name) {
@@ -36,6 +39,24 @@ const HomeManagement: React.FC = () => {
     }
 
     createHome(newHome);
+    
+    // Auto-assign to first available user
+    const unassignedUsers = getUnassignedUsers();
+    if (unassignedUsers.length > 0) {
+      const homeId = `home_${Date.now()}`;
+      assignUserToHome(unassignedUsers[0].id, homeId);
+      toast({
+        title: "Success",
+        description: `Home created and assigned to ${unassignedUsers[0].name}`,
+      });
+    } else {
+      toast({
+        title: "Home Created",
+        description: "Home created successfully. No unassigned users available for auto-assignment.",
+        variant: "default",
+      });
+    }
+
     setNewHome({
       name: '',
       componentCount: {
@@ -46,10 +67,6 @@ const HomeManagement: React.FC = () => {
       }
     });
     setShowCreateForm(false);
-    toast({
-      title: "Success",
-      description: "Home created successfully",
-    });
   };
 
   const handleDeleteHome = (homeId: string) => {
@@ -72,12 +89,24 @@ const HomeManagement: React.FC = () => {
     return users.filter(user => user.homeId === homeId);
   };
 
-  const getUnassignedUsers = () => {
-    return users.filter(user => user.role === 'user' && !user.homeId);
-  };
-
   return (
     <div className="space-y-6">
+      {getUnassignedUsers().length === 0 && (
+        <Card className="bg-yellow-950 border-yellow-600">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-yellow-400">
+              <AlertCircle className="h-5 w-5" />
+              No Available Users
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-yellow-200">
+              All users are currently assigned to homes. Create new users in the User Management tab before creating homes.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       <Card className="bg-gray-900 border-gray-700">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-white">

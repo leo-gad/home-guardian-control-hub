@@ -1,4 +1,3 @@
-
 import React, { useMemo } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
@@ -12,7 +11,9 @@ import AlertPanel from '@/components/AlertPanel';
 import UserManagement from '@/components/UserManagement';
 import HomeManagement from '@/components/HomeManagement';
 import AdminSettings from '@/components/AdminSettings';
-import { Home, Users, Settings, Building } from 'lucide-react';
+import UserSettings from '@/components/UserSettings';
+import UserProfile from '@/components/UserProfile';
+import { Home, Users, Settings, Building, User } from 'lucide-react';
 
 const Dashboard: React.FC = () => {
   const { isAdmin, getCurrentUserHome, currentUser } = useAuth();
@@ -149,6 +150,10 @@ const Dashboard: React.FC = () => {
                 </TabsTrigger>
               </>
             )}
+            <TabsTrigger value="profile" className="data-[state=active]:bg-blue-600">
+              <User className="h-4 w-4 mr-2" />
+              Profile
+            </TabsTrigger>
             <TabsTrigger value="settings" className="data-[state=active]:bg-blue-600">
               <Settings className="h-4 w-4 mr-2" />
               Settings
@@ -198,14 +203,15 @@ const Dashboard: React.FC = () => {
             </>
           )}
 
+          <TabsContent value="profile">
+            <UserProfile />
+          </TabsContent>
+
           <TabsContent value="settings">
             {isAdmin ? (
               <AdminSettings />
             ) : (
-              <div>
-                <h2 className="text-xl font-semibold mb-4">Settings</h2>
-                <p className="text-gray-400">User settings and preferences will be available here.</p>
-              </div>
+              <UserSettings />
             )}
           </TabsContent>
         </Tabs>
