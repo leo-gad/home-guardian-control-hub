@@ -1,9 +1,9 @@
 
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Switch } from '@/components/ui/switch';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Lamp, DoorClosed, DoorOpen, RectangleHorizontal, Bell } from 'lucide-react';
+import { Lamp, DoorClosed, DoorOpen, RectangleHorizontal, Bell, Power } from 'lucide-react';
 
 interface DeviceCardProps {
   title: string;
@@ -62,6 +62,12 @@ const DeviceCard: React.FC<DeviceCardProps> = ({
     return status ? 'default' : 'secondary';
   };
 
+  const handleToggle = () => {
+    if (onToggle) {
+      onToggle(!status);
+    }
+  };
+
   return (
     <Card className="bg-gray-900 border-gray-700 hover:border-blue-500 transition-all duration-300">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -74,11 +80,21 @@ const DeviceCard: React.FC<DeviceCardProps> = ({
             {getStatusText()}
           </Badge>
           {canControl && type !== 'motion' && onToggle && (
-            <Switch
-              checked={status}
-              onCheckedChange={onToggle}
-              className="data-[state=checked]:bg-blue-500 transition-all duration-300"
-            />
+            <Button
+              size="sm"
+              variant={status ? "default" : "outline"}
+              onClick={handleToggle}
+              className={`
+                transition-all duration-300 
+                ${status 
+                  ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                  : 'bg-gray-700 hover:bg-gray-600 text-gray-200 border-gray-600'
+                }
+              `}
+            >
+              <Power className="h-3 w-3 mr-1" />
+              {status ? 'Turn Off' : 'Turn On'}
+            </Button>
           )}
         </div>
       </CardContent>

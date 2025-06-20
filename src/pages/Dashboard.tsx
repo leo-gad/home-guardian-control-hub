@@ -1,8 +1,9 @@
+
 import React, { useMemo } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { useFirebaseData } from '@/hooks/useFirebaseData';
+import { useFirestoreData } from '@/hooks/useFirestoreData';
 import { useToast } from '@/hooks/use-toast';
 import Header from '@/components/Header';
 import DeviceCard from '@/components/DeviceCard';
@@ -18,7 +19,7 @@ import { Home, Users, Settings, Building, User } from 'lucide-react';
 const Dashboard: React.FC = () => {
   const { isAdmin, getCurrentUserHome, currentUser } = useAuth();
   const { getThemeClasses } = useTheme();
-  const { data, loading, error, updateDevice } = useFirebaseData();
+  const { data, loading, error, updateDevice } = useFirestoreData();
   const { toast } = useToast();
   const userHome = getCurrentUserHome();
 
@@ -67,7 +68,7 @@ const Dashboard: React.FC = () => {
           title={`Lamp ${i + 1}`}
           type="lamp"
           status={data.lamp}
-          onToggle={(value) => handleDeviceToggle(`lamp${i + 1}`, value)}
+          onToggle={(value) => handleDeviceToggle('lamp', value)}
         />
       );
     }
@@ -79,7 +80,7 @@ const Dashboard: React.FC = () => {
           title={`Door ${i + 1}`}
           type="door"
           status={data.door}
-          onToggle={(value) => handleDeviceToggle(`door${i + 1}`, value)}
+          onToggle={(value) => handleDeviceToggle('door', value)}
         />
       );
     }
@@ -91,7 +92,7 @@ const Dashboard: React.FC = () => {
           title={`Window ${i + 1}`}
           type="window"
           status={data.window}
-          onToggle={(value) => handleDeviceToggle(`window${i + 1}`, value)}
+          onToggle={(value) => handleDeviceToggle('window', value)}
         />
       );
     }
@@ -114,7 +115,7 @@ const Dashboard: React.FC = () => {
   if (loading) {
     return (
       <div className={`min-h-screen ${getThemeClasses()} flex items-center justify-center`}>
-        <div>Loading...</div>
+        <div className="text-white">Loading dashboard...</div>
       </div>
     );
   }
@@ -163,7 +164,7 @@ const Dashboard: React.FC = () => {
           <TabsContent value="dashboard" className="space-y-6">
             {userHome && (
               <div className="mb-6">
-                <h2 className="text-2xl font-bold mb-2">{userHome.name}</h2>
+                <h2 className="text-2xl font-bold mb-2 text-white">{userHome.name}</h2>
                 <p className="text-gray-400">
                   Managing {userHome.componentCount.lamps + userHome.componentCount.doors + userHome.componentCount.windows + userHome.componentCount.motionSensors} devices
                 </p>

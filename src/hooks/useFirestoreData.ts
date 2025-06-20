@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { ref, onValue, set } from 'firebase/database';
 import { database } from '@/lib/firestore';
+import { firestoreAPI } from '@/lib/firestore';
 
 interface DeviceData {
   temperature: number;
@@ -13,7 +14,7 @@ interface DeviceData {
   lastUpdated: string;
 }
 
-export const useFirebaseData = () => {
+export const useFirestoreData = () => {
   const [data, setData] = useState<DeviceData>({
     temperature: 25,
     humidity: 60,
@@ -27,37 +28,51 @@ export const useFirebaseData = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const dataRef = ref(database, '/');
-    
-    const unsubscribe = onValue(dataRef, (snapshot) => {
+    // Listen to real-time database for sensor data (temperature, humidity)
+    const sensorRef = ref(database, '/');
+    const sensorUnsubscribe = onValue(sensorRef, (snapshot) => {
       try {
-        const firebaseData = snapshot.val();
-        if (firebaseData) {
-          setData({
-            temperature: firebaseData.temperature || 25,
-            humidity: firebaseData.humidity || 60,
-            motion: firebaseData.motion || false,
-            door: firebaseData.door || false,
-            window: firebaseData.window || false,
-            lamp: firebaseData.lamp || false,
-            lastUpdated: firebaseData.lastUpdated || new Date().toISOString()
-          });
+        const sensorData = snapshot.val();
+        if (sensorData) {
+          setData(prev => ({
+            ...prev,
+            temperature: sensorData.temperature || 25,
+            humidity: sensorData.humidity || 60,
+            motion: sensorData.motion || false,
+          }));
         }
-        setLoading(false);
       } catch (err) {
-        setError('Failed to fetch data');
-        setLoading(false);
+        console.error('Error fetching sensor data:', err);
       }
-    }, (error) => {
-      setError(error.message);
-      setLoading(false);
     });
 
-    return () => unsubscribe();
+    // Listen to Firestore for device states (controllable devices)
+    const deviceUnsubscribe = firestoreAPI.onDeviceStatesChange((deviceData) => {
+      try {
+        setData(prev => ({
+          ...prev,
+          door: deviceData.door || false,
+          window: deviceData.window || false,
+          lamp: deviceData.lamp || false,
+          lastUpdated: deviceData.lastUpdated || new Date().toISOString()
+        }));
+        setLoading(false);
+      } catch (err) {
+        setError('Failed to fetch device data');
+        setLoading(false);
+      }
+    });
+
+    return () => {
+      sensorUnsubscribe();
+      deviceUnsubscribe();
+    };
   }, []);
 
   const updateDevice = async (device: string, value: boolean) => {
     try {
+      // Update both Firestore and Real-time database
+      await firestoreAPI.updateDeviceState(device, value);
       await set(ref(database, `/${device}`), value);
       await set(ref(database, '/lastUpdated'), new Date().toISOString());
       
