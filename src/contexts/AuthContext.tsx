@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
 interface User {
@@ -7,6 +6,7 @@ interface User {
   email: string;
   role: 'admin' | 'user';
   homeId?: string;
+  password?: string;
 }
 
 interface Home {
@@ -33,6 +33,7 @@ interface AuthContextType {
   addUser: (user: Omit<User, 'id'>) => void;
   removeUser: (userId: string) => void;
   updateUser: (userId: string, updates: Partial<User>) => void;
+  changePassword: (newPassword: string) => void;
   createHome: (homeData: Omit<Home, 'id' | 'adminId' | 'users' | 'createdAt'>) => void;
   deleteHome: (homeId: string) => void;
   assignUserToHome: (userId: string, homeId: string) => void;
@@ -56,14 +57,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       id: '1',
       name: 'Admin User',
       email: 'admin@home.com',
-      role: 'admin'
+      role: 'admin',
+      password: 'password123'
     },
     {
       id: '2', 
       name: 'John Doe',
       email: 'user@home.com',
       role: 'user',
-      homeId: 'home1'
+      homeId: 'home1',
+      password: 'password123'
     }
   ]);
   
@@ -85,7 +88,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, password: string): Promise<boolean> => {
     const user = users.find(u => u.email === email);
-    if (user && password === 'password123') {
+    if (user && user.password === password) {
       setCurrentUser(user);
       localStorage.setItem('currentUser', JSON.stringify(user));
       return true;
@@ -104,16 +107,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const removeUser = (userId: string) => {
+    const userToDelete = users.find(u => u.id === userId);
+    
+    // Remove user from users array
     setUsers(prev => prev.filter(u => u.id !== userId));
-    // Remove user from homes
-    setHomes(prev => prev.map(home => ({
-      ...home,
-      users: home.users.filter(id => id !== userId)
-    })));
+    
+    // If user has a home and is the only user, delete the home
+    if (userToDelete?.homeId) {
+      const userHome = homes.find(h => h.id === userToDelete.homeId);
+      if (userHome && userHome.users.length === 1 && userHome.users[0] === userId) {
+        setHomes(prev => prev.filter(h => h.id !== userToDelete.homeId));
+      } else {
+        // Remove user from home's users array
+        setHomes(prev => prev.map(home => ({
+          ...home,
+          users: home.users.filter(id => id !== userId)
+        })));
+      }
+    }
   };
 
   const updateUser = (userId: string, updates: Partial<User>) => {
     setUsers(prev => prev.map(u => u.id === userId ? { ...u, ...updates } : u));
+    if (currentUser?.id === userId) {
+      setCurrentUser(prev => prev ? { ...prev, ...updates } : null);
+    }
+  };
+
+  const changePassword = (newPassword: string) => {
+    if (currentUser) {
+      const updatedUser = { ...currentUser, password: newPassword };
+      setCurrentUser(updatedUser);
+      setUsers(prev => prev.map(u => u.id === currentUser.id ? updatedUser : u));
+      localStorage.setItem('currentUser', JSON.stringify(updatedUser));
+    }
   };
 
   const createHome = (homeData: Omit<Home, 'id' | 'adminId' | 'users' | 'createdAt'>) => {
@@ -129,19 +156,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const deleteHome = (homeId: string) => {
     setHomes(prev => prev.filter(h => h.id !== homeId));
-    // Remove homeId from users
     setUsers(prev => prev.map(user => 
       user.homeId === homeId ? { ...user, homeId: undefined } : user
     ));
   };
 
   const assignUserToHome = (userId: string, homeId: string) => {
-    // Update user's homeId
     setUsers(prev => prev.map(user => 
       user.id === userId ? { ...user, homeId } : user
     ));
     
-    // Add user to home's users array
     setHomes(prev => prev.map(home => {
       if (home.id === homeId) {
         return { ...home, users: [...home.users.filter(id => id !== userId), userId] };
@@ -159,7 +183,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const savedUser = localStorage.getItem('currentUser');
     if (savedUser) {
       const user = JSON.parse(savedUser);
-      // Make sure the user still exists in our users array
       const existingUser = users.find(u => u.id === user.id);
       if (existingUser) {
         setCurrentUser(existingUser);
@@ -177,6 +200,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     addUser,
     removeUser,
     updateUser,
+    changePassword,
     createHome,
     deleteHome,
     assignUserToHome,

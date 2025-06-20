@@ -1,7 +1,8 @@
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { useFirebaseData } from '@/hooks/useFirebaseData';
 import { useToast } from '@/hooks/use-toast';
 import Header from '@/components/Header';
@@ -10,10 +11,12 @@ import EnvironmentCard from '@/components/EnvironmentCard';
 import AlertPanel from '@/components/AlertPanel';
 import UserManagement from '@/components/UserManagement';
 import HomeManagement from '@/components/HomeManagement';
+import AdminSettings from '@/components/AdminSettings';
 import { Home, Users, Settings, Building } from 'lucide-react';
 
 const Dashboard: React.FC = () => {
   const { isAdmin, getCurrentUserHome, currentUser } = useAuth();
+  const { getThemeClasses } = useTheme();
   const { data, loading, error, updateDevice } = useFirebaseData();
   const { toast } = useToast();
   const userHome = getCurrentUserHome();
@@ -34,7 +37,7 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const renderDeviceCards = () => {
+  const deviceCards = useMemo(() => {
     if (!userHome && currentUser?.role === 'user') {
       return (
         <div className="col-span-full text-center py-12">
@@ -56,7 +59,6 @@ const Dashboard: React.FC = () => {
 
     const devices = [];
 
-    // Add lamps
     for (let i = 0; i < componentCount.lamps; i++) {
       devices.push(
         <DeviceCard
@@ -69,7 +71,6 @@ const Dashboard: React.FC = () => {
       );
     }
 
-    // Add doors
     for (let i = 0; i < componentCount.doors; i++) {
       devices.push(
         <DeviceCard
@@ -82,7 +83,6 @@ const Dashboard: React.FC = () => {
       );
     }
 
-    // Add windows
     for (let i = 0; i < componentCount.windows; i++) {
       devices.push(
         <DeviceCard
@@ -95,7 +95,6 @@ const Dashboard: React.FC = () => {
       );
     }
 
-    // Add motion sensors
     for (let i = 0; i < componentCount.motionSensors; i++) {
       devices.push(
         <DeviceCard
@@ -109,26 +108,26 @@ const Dashboard: React.FC = () => {
     }
 
     return devices;
-  };
+  }, [userHome, currentUser, data, handleDeviceToggle]);
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-        <div className="text-white">Loading...</div>
+      <div className={`min-h-screen ${getThemeClasses()} flex items-center justify-center`}>
+        <div>Loading...</div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
+      <div className={`min-h-screen ${getThemeClasses()} flex items-center justify-center`}>
         <div className="text-red-400">Error: {error}</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-950">
+    <div className={`min-h-screen ${getThemeClasses()}`}>
       <Header />
       
       <main className="p-6">
@@ -159,7 +158,7 @@ const Dashboard: React.FC = () => {
           <TabsContent value="dashboard" className="space-y-6">
             {userHome && (
               <div className="mb-6">
-                <h2 className="text-2xl font-bold text-white mb-2">{userHome.name}</h2>
+                <h2 className="text-2xl font-bold mb-2">{userHome.name}</h2>
                 <p className="text-gray-400">
                   Managing {userHome.componentCount.lamps + userHome.componentCount.doors + userHome.componentCount.windows + userHome.componentCount.motionSensors} devices
                 </p>
@@ -174,7 +173,7 @@ const Dashboard: React.FC = () => {
                 />
                 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {renderDeviceCards()}
+                  {deviceCards}
                 </div>
               </div>
 
@@ -200,10 +199,14 @@ const Dashboard: React.FC = () => {
           )}
 
           <TabsContent value="settings">
-            <div className="text-white">
-              <h2 className="text-xl font-semibold mb-4">Settings</h2>
-              <p className="text-gray-400">System settings and configuration options will be available here.</p>
-            </div>
+            {isAdmin ? (
+              <AdminSettings />
+            ) : (
+              <div>
+                <h2 className="text-xl font-semibold mb-4">Settings</h2>
+                <p className="text-gray-400">User settings and preferences will be available here.</p>
+              </div>
+            )}
           </TabsContent>
         </Tabs>
       </main>

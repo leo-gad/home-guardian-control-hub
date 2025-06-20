@@ -16,12 +16,13 @@ const UserManagement: React.FC = () => {
   const [newUser, setNewUser] = useState({
     name: '',
     email: '',
+    password: '',
     role: 'user' as 'admin' | 'user'
   });
 
   const handleAddUser = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newUser.name || !newUser.email) {
+    if (!newUser.name || !newUser.email || !newUser.password) {
       toast({
         title: "Error",
         description: "Please fill in all required fields",
@@ -30,8 +31,17 @@ const UserManagement: React.FC = () => {
       return;
     }
 
+    if (newUser.password.length < 6) {
+      toast({
+        title: "Error",
+        description: "Password must be at least 6 characters long",
+        variant: "destructive",
+      });
+      return;
+    }
+
     addUser(newUser);
-    setNewUser({ name: '', email: '', role: 'user' });
+    setNewUser({ name: '', email: '', password: '', role: 'user' });
     toast({
       title: "Success",
       description: "User added successfully",
@@ -101,6 +111,17 @@ const UserManagement: React.FC = () => {
                   placeholder="Enter email address"
                 />
               </div>
+            </div>
+            <div>
+              <Label htmlFor="password" className="text-gray-200">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                value={newUser.password}
+                onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                className="bg-gray-700 border-gray-600 text-white"
+                placeholder="Enter password (min 6 characters)"
+              />
             </div>
             <div>
               <Label className="text-gray-200">Role</Label>
