@@ -1,5 +1,5 @@
 
-import React, { useMemo } from 'react';
+import React, { useMemo, lazy, Suspense } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -9,12 +9,15 @@ import Header from '@/components/Header';
 import DeviceCard from '@/components/DeviceCard';
 import EnvironmentCard from '@/components/EnvironmentCard';
 import AlertPanel from '@/components/AlertPanel';
-import UserManagement from '@/components/UserManagement';
-import HomeManagement from '@/components/HomeManagement';
-import AdminSettings from '@/components/AdminSettings';
-import UserSettings from '@/components/UserSettings';
-import UserProfile from '@/components/UserProfile';
 import { Home, Users, Settings, Building, User } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+
+// Lazy load heavy components
+const UserManagement = lazy(() => import('@/components/UserManagement'));
+const HomeManagement = lazy(() => import('@/components/HomeManagement'));
+const AdminSettings = lazy(() => import('@/components/AdminSettings'));
+const UserSettings = lazy(() => import('@/components/UserSettings'));
+const UserProfile = lazy(() => import('@/components/UserProfile'));
 
 const Dashboard: React.FC = () => {
   const { isAdmin, getCurrentUserHome, currentUser } = useAuth();
@@ -23,21 +26,23 @@ const Dashboard: React.FC = () => {
   const { toast } = useToast();
   const userHome = getCurrentUserHome();
 
-  const handleDeviceToggle = async (device: string, value: boolean) => {
-    try {
-      await updateDevice(device, value);
-      toast({
-        title: "Device Updated",
-        description: `${device} has been ${value ? 'turned on' : 'turned off'}`,
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update device",
-        variant: "destructive",
-      });
-    }
-  };
+  const handleDeviceToggle = useMemo(() => 
+    async (device: string, value: boolean) => {
+      try {
+        await updateDevice(device, value);
+        toast({
+          title: "Device Updated",
+          description: `${device} has been ${value ? 'turned on' : 'turned off'}`,
+        });
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to update device",
+          variant: "destructive",
+        });
+      }
+    }, [updateDevice, toast]
+  );
 
   const deviceCards = useMemo(() => {
     if (!userHome && currentUser?.role === 'user') {
@@ -112,10 +117,30 @@ const Dashboard: React.FC = () => {
     return devices;
   }, [userHome, currentUser, data, handleDeviceToggle]);
 
+  const LoadingSkeleton = () => (
+    <div className="space-y-6">
+      <Skeleton className="h-8 w-64" />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
+          <Skeleton className="h-32 w-full" />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-24 w-full" />
+          </div>
+        </div>
+        <Skeleton className="h-64 w-full" />
+      </div>
+    </div>
+  );
+
   if (loading) {
     return (
-      <div className={`min-h-screen ${getThemeClasses()} flex items-center justify-center`}>
-        <div className="text-white">Loading dashboard...</div>
+      <div className={`min-h-screen ${getThemeClasses()}`}>
+        <Header />
+        <main className="p-6">
+          <LoadingSkeleton />
+        </main>
       </div>
     );
   }
@@ -196,24 +221,32 @@ const Dashboard: React.FC = () => {
           {isAdmin && (
             <>
               <TabsContent value="homes">
-                <HomeManagement />
+                <Suspense fallback={<LoadingSkeleton />}>
+                  <HomeManagement />
+                </Suspense>
               </TabsContent>
               <TabsContent value="users">
-                <UserManagement />
+                <Suspense fallback={<LoadingSkeleton />}>
+                  <UserManagement />
+                </Suspense>
               </TabsContent>
             </>
           )}
 
           <TabsContent value="profile">
-            <UserProfile />
+            <Suspense fallback={<LoadingSkeleton />}>
+              <UserProfile />
+            </Suspense>
           </TabsContent>
 
           <TabsContent value="settings">
-            {isAdmin ? (
-              <AdminSettings />
-            ) : (
-              <UserSettings />
-            )}
+            <Suspense fallback={<LoadingSkeleton />}>
+              {isAdmin ? (
+                <AdminSettings />
+              ) : (
+                <UserSettings />
+              )}
+            </Suspense>
           </TabsContent>
         </Tabs>
       </main>

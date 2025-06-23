@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { memo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -13,7 +13,7 @@ interface DeviceCardProps {
   canControl?: boolean;
 }
 
-const DeviceCard: React.FC<DeviceCardProps> = ({ 
+const DeviceCard: React.FC<DeviceCardProps> = memo(({ 
   title, 
   type, 
   status, 
@@ -69,14 +69,14 @@ const DeviceCard: React.FC<DeviceCardProps> = ({
   };
 
   return (
-    <Card className="bg-gray-900 border-gray-700 hover:border-blue-500 transition-all duration-300">
+    <Card className="bg-gray-900 border-gray-700 hover:border-blue-500 transition-all duration-300 transform hover:scale-105">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium text-gray-200">{title}</CardTitle>
         {getIcon()}
       </CardHeader>
       <CardContent>
         <div className="flex items-center justify-between">
-          <Badge variant={getStatusColor()} className="mb-2 transition-colors duration-300">
+          <Badge variant={getStatusColor()} className="mb-2 transition-all duration-300 animate-fade-in">
             {getStatusText()}
           </Badge>
           {canControl && type !== 'motion' && onToggle && (
@@ -85,10 +85,10 @@ const DeviceCard: React.FC<DeviceCardProps> = ({
               variant={status ? "default" : "outline"}
               onClick={handleToggle}
               className={`
-                transition-all duration-300 
+                transition-all duration-300 transform hover:scale-105
                 ${status 
-                  ? 'bg-blue-600 hover:bg-blue-700 text-white' 
-                  : 'bg-gray-700 hover:bg-gray-600 text-gray-200 border-gray-600'
+                  ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg' 
+                  : 'bg-gray-700 hover:bg-gray-600 text-gray-200 border-gray-600 hover:shadow-md'
                 }
               `}
             >
@@ -100,6 +100,8 @@ const DeviceCard: React.FC<DeviceCardProps> = ({
       </CardContent>
     </Card>
   );
-};
+});
+
+DeviceCard.displayName = 'DeviceCard';
 
 export default DeviceCard;
