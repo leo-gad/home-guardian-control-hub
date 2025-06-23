@@ -32,6 +32,8 @@ export const useFirebaseData = () => {
     const unsubscribe = onValue(dataRef, (snapshot) => {
       try {
         const firebaseData = snapshot.val();
+        console.log('Firebase data received:', firebaseData);
+        
         if (firebaseData) {
           setData({
             temperature: firebaseData.temperature || 25,
@@ -44,11 +46,14 @@ export const useFirebaseData = () => {
           });
         }
         setLoading(false);
+        setError(null);
       } catch (err) {
+        console.error('Error fetching data:', err);
         setError('Failed to fetch data');
         setLoading(false);
       }
     }, (error) => {
+      console.error('Firebase error:', error);
       setError(error.message);
       setLoading(false);
     });
@@ -58,15 +63,22 @@ export const useFirebaseData = () => {
 
   const updateDevice = async (device: string, value: boolean) => {
     try {
+      console.log(`Updating ${device} to ${value}`);
+      
+      // Update the device state
       await set(ref(database, `/${device}`), value);
+      
+      // Update the lastUpdated timestamp
       await set(ref(database, '/lastUpdated'), new Date().toISOString());
       
-      // Update local state immediately for better UX
+      // Optimistic update for immediate UI feedback
       setData(prev => ({
         ...prev,
         [device]: value,
         lastUpdated: new Date().toISOString()
       }));
+      
+      console.log(`Successfully updated ${device}`);
     } catch (err) {
       console.error('Failed to update device:', err);
       setError('Failed to update device');

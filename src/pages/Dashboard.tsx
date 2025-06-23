@@ -2,7 +2,7 @@ import React, { useMemo, lazy, Suspense } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { useFirestoreData } from '@/hooks/useFirestoreData';
+import { useFirebaseData } from '@/hooks/useFirebaseData';
 import { useToast } from '@/hooks/use-toast';
 import Header from '@/components/Header';
 import DeviceCard from '@/components/DeviceCard';
@@ -24,7 +24,7 @@ const UserProfile = lazy(() => import('@/components/UserProfile'));
 const Dashboard: React.FC = () => {
   const { isAdmin, getCurrentUserHome, currentUser } = useAuth();
   const { getThemeClasses } = useTheme();
-  const { data, loading, error, updateDevice } = useFirestoreData();
+  const { data, loading, error, updateDevice } = useFirebaseData();
   const { toast } = useToast();
   const userHome = getCurrentUserHome();
 
