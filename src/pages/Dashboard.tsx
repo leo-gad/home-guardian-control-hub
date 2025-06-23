@@ -1,4 +1,3 @@
-
 import React, { useMemo, lazy, Suspense } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
@@ -9,7 +8,10 @@ import Header from '@/components/Header';
 import DeviceCard from '@/components/DeviceCard';
 import EnvironmentCard from '@/components/EnvironmentCard';
 import AlertPanel from '@/components/AlertPanel';
-import { Home, Users, Settings, Building, User } from 'lucide-react';
+import DynamicAnalytics from '@/components/DynamicAnalytics';
+import DynamicStatusIndicator from '@/components/DynamicStatusIndicator';
+import DynamicAutomation from '@/components/DynamicAutomation';
+import { Home, Users, Settings, Building, User, BarChart3, Zap } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 // Lazy load heavy components
@@ -25,6 +27,15 @@ const Dashboard: React.FC = () => {
   const { data, loading, error, updateDevice } = useFirestoreData();
   const { toast } = useToast();
   const userHome = getCurrentUserHome();
+
+  // Get current time of day for dynamic suggestions
+  const timeOfDay = useMemo(() => {
+    const hour = new Date().getHours();
+    if (hour >= 6 && hour < 12) return 'morning';
+    if (hour >= 12 && hour < 17) return 'afternoon';
+    if (hour >= 17 && hour < 22) return 'evening';
+    return 'night';
+  }, []);
 
   const handleDeviceToggle = useMemo(() => 
     async (device: string, value: boolean) => {
@@ -164,6 +175,14 @@ const Dashboard: React.FC = () => {
               <Home className="h-4 w-4 mr-2" />
               Dashboard
             </TabsTrigger>
+            <TabsTrigger value="analytics" className="data-[state=active]:bg-blue-600">
+              <BarChart3 className="h-4 w-4 mr-2" />
+              Analytics
+            </TabsTrigger>
+            <TabsTrigger value="automation" className="data-[state=active]:bg-blue-600">
+              <Zap className="h-4 w-4 mr-2" />
+              Automation
+            </TabsTrigger>
             {isAdmin && (
               <>
                 <TabsTrigger value="homes" className="data-[state=active]:bg-blue-600">
@@ -187,6 +206,12 @@ const Dashboard: React.FC = () => {
           </TabsList>
 
           <TabsContent value="dashboard" className="space-y-6">
+            {/* Dynamic Status Indicator */}
+            <DynamicStatusIndicator 
+              isConnected={!error}
+              lastUpdated={data.lastUpdated}
+            />
+
             {userHome && (
               <div className="mb-6">
                 <h2 className="text-2xl font-bold mb-2 text-white">{userHome.name}</h2>
@@ -216,6 +241,33 @@ const Dashboard: React.FC = () => {
                 />
               </div>
             </div>
+          </TabsContent>
+
+          <TabsContent value="analytics">
+            <DynamicAnalytics
+              temperature={data.temperature}
+              humidity={data.humidity}
+              deviceStates={{
+                lamp: data.lamp,
+                door: data.door,
+                window: data.window,
+                motion: data.motion
+              }}
+            />
+          </TabsContent>
+
+          <TabsContent value="automation">
+            <DynamicAutomation
+              temperature={data.temperature}
+              humidity={data.humidity}
+              deviceStates={{
+                lamp: data.lamp,
+                door: data.door,
+                window: data.window,
+                motion: data.motion
+              }}
+              timeOfDay={timeOfDay}
+            />
           </TabsContent>
 
           {isAdmin && (
