@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { ref, set, get } from 'firebase/database';
 import { database } from '@/lib/firestore';
@@ -54,43 +53,160 @@ export const useAuth = () => {
   return context;
 };
 
+// Storage keys for persistence
+const STORAGE_KEYS = {
+  CURRENT_USER: 'currentUser',
+  USERS: 'users',
+  HOMES: 'homes',
+  LAST_SYNC: 'lastSync'
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [users, setUsers] = useState<User[]>([
-    {
-      id: '1',
-      name: 'Admin User',
-      email: 'admin@home.com',
-      role: 'admin',
-      password: 'password123'
-    },
-    {
-      id: '2', 
-      name: 'John Doe',
-      email: 'user@home.com',
-      role: 'user',
-      homeId: 'home1',
-      password: 'password123'
-    }
-  ]);
-  
-  const [homes, setHomes] = useState<Home[]>([
-    {
-      id: 'home1',
-      name: 'John\'s Smart Home',
-      adminId: '1',
-      componentCount: {
-        lamps: 3,
-        doors: 2,
-        windows: 4,
-        motionSensors: 2
-      },
-      users: ['2'],
-      createdAt: new Date().toISOString()
-    }
-  ]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [homes, setHomes] = useState<Home[]>([]);
+  const [isInitialized, setIsInitialized] = useState(false);
 
-  // Store user profile data in Firebase
+  // Load data from localStorage
+  const loadFromStorage = () => {
+    try {
+      const savedCurrentUser = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
+      const savedUsers = localStorage.getItem(STORAGE_KEYS.USERS);
+      const savedHomes = localStorage.getItem(STORAGE_KEYS.HOMES);
+
+      if (savedCurrentUser) {
+        const parsedUser = JSON.parse(savedCurrentUser);
+        setCurrentUser(parsedUser);
+        console.log('Restored current user from localStorage:', parsedUser.email);
+      }
+
+      if (savedUsers) {
+        const parsedUsers = JSON.parse(savedUsers);
+        setUsers(parsedUsers);
+        console.log('Restored users from localStorage:', parsedUsers.length);
+      } else {
+        // Initialize with default data if no saved data exists
+        const defaultUsers = [
+          {
+            id: '1',
+            name: 'Admin User',
+            email: 'admin@home.com',
+            role: 'admin' as const,
+            password: 'password123'
+          },
+          {
+            id: '2', 
+            name: 'John Doe',
+            email: 'user@home.com',
+            role: 'user' as const,
+            homeId: 'home1',
+            password: 'password123'
+          }
+        ];
+        setUsers(defaultUsers);
+        localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(defaultUsers));
+      }
+
+      if (savedHomes) {
+        const parsedHomes = JSON.parse(savedHomes);
+        setHomes(parsedHomes);
+        console.log('Restored homes from localStorage:', parsedHomes.length);
+      } else {
+        // Initialize with default data if no saved data exists
+        const defaultHomes = [
+          {
+            id: 'home1',
+            name: 'John\'s Smart Home',
+            adminId: '1',
+            componentCount: {
+              lamps: 3,
+              doors: 2,
+              windows: 4,
+              motionSensors: 2
+            },
+            users: ['2'],
+            createdAt: new Date().toISOString()
+          }
+        ];
+        setHomes(defaultHomes);
+        localStorage.setItem(STORAGE_KEYS.HOMES, JSON.stringify(defaultHomes));
+      }
+
+    } catch (error) {
+      console.error('Error loading data from localStorage:', error);
+      // Initialize with default data on error
+      initializeDefaultData();
+    }
+  };
+
+  // Save data to localStorage
+  const saveToStorage = () => {
+    try {
+      if (currentUser) {
+        localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(currentUser));
+      }
+      localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+      localStorage.setItem(STORAGE_KEYS.HOMES, JSON.stringify(homes));
+      localStorage.setItem(STORAGE_KEYS.LAST_SYNC, new Date().toISOString());
+      console.log('Data saved to localStorage');
+    } catch (error) {
+      console.error('Error saving data to localStorage:', error);
+    }
+  };
+
+  // Initialize with default data
+  const initializeDefaultData = () => {
+    const defaultUsers = [
+      {
+        id: '1',
+        name: 'Admin User',
+        email: 'admin@home.com',
+        role: 'admin' as const,
+        password: 'password123'
+      },
+      {
+        id: '2', 
+        name: 'John Doe',
+        email: 'user@home.com',
+        role: 'user' as const,
+        homeId: 'home1',
+        password: 'password123'
+      }
+    ];
+
+    const defaultHomes = [
+      {
+        id: 'home1',
+        name: 'John\'s Smart Home',
+        adminId: '1',
+        componentCount: {
+          lamps: 3,
+          doors: 2,
+          windows: 4,
+          motionSensors: 2
+        },
+        users: ['2'],
+        createdAt: new Date().toISOString()
+      }
+    ];
+
+    setUsers(defaultUsers);
+    setHomes(defaultHomes);
+  };
+
+  // Initialize data on component mount
+  useEffect(() => {
+    loadFromStorage();
+    setIsInitialized(true);
+  }, []);
+
+  // Save to localStorage whenever data changes
+  useEffect(() => {
+    if (isInitialized) {
+      saveToStorage();
+    }
+  }, [currentUser, users, homes, isInitialized]);
+
   const storeUserInFirebase = async (user: User) => {
     try {
       const userProfileRef = ref(database, `userProfiles/${user.id}`);
@@ -111,7 +227,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Store admin profile data in Firebase
   const storeAdminInFirebase = async (admin: User) => {
     try {
       const adminProfileRef = ref(database, `adminProfiles/${admin.id}`);
@@ -138,7 +253,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (!user) return;
 
-      // Create user data structure in Firebase
       const userData = {
         name: user.name,
         email: user.email,
@@ -147,7 +261,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         devices: {}
       };
 
-      // Add devices based on component count
       for (let i = 1; i <= componentCount.lamps; i++) {
         userData.devices[`lamp${i}`] = false;
       }
@@ -164,14 +277,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         userData.devices[`motion${i}`] = false;
       }
 
-      // Add environmental data
       userData.devices['temperature'] = 25;
       userData.devices['humidity'] = 60;
       userData.devices['lastUpdated'] = new Date().toISOString();
 
       await set(userRef, userData);
-      
-      // Also store user profile separately
       await storeUserInFirebase(user);
       
       console.log(`Created Firebase structure for user ${userId}`);
@@ -185,9 +295,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const user = users.find(u => u.email === email);
     if (user && user.password === password) {
       setCurrentUser(user);
-      localStorage.setItem('currentUser', JSON.stringify(user));
       
-      // Store admin profile in Firebase if it's an admin login
       if (user.role === 'admin') {
         await storeAdminInFirebase(user);
       }
@@ -199,17 +307,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = () => {
     setCurrentUser(null);
-    localStorage.removeItem('currentUser');
+    localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
   };
 
   const addUser = async (userData: Omit<User, 'id'>) => {
     const newUser = { ...userData, id: Date.now().toString() };
     setUsers(prev => [...prev, newUser]);
     
-    // Store user profile in Firebase immediately
     await storeUserInFirebase(newUser);
     
-    // If user has a homeId, create Firebase structure
     if (newUser.homeId) {
       const home = homes.find(h => h.id === newUser.homeId);
       if (home) {
@@ -221,10 +327,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const removeUser = (userId: string) => {
     const userToDelete = users.find(u => u.id === userId);
     
-    // Remove user from users array
     setUsers(prev => prev.filter(u => u.id !== userId));
     
-    // Remove user data from Firebase
     if (userToDelete) {
       const userRef = ref(database, `users/${userId}`);
       const userProfileRef = ref(database, `userProfiles/${userId}`);
@@ -232,13 +336,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       set(userProfileRef, null).catch(console.error);
     }
     
-    // If user has a home and is the only user, delete the home
     if (userToDelete?.homeId) {
       const userHome = homes.find(h => h.id === userToDelete.homeId);
       if (userHome && userHome.users.length === 1 && userHome.users[0] === userId) {
         setHomes(prev => prev.filter(h => h.id !== userToDelete.homeId));
       } else {
-        // Remove user from home's users array
         setHomes(prev => prev.map(home => ({
           ...home,
           users: home.users.filter(id => id !== userId)
@@ -259,17 +361,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const updatedUser = { ...currentUser, password: newPassword };
       setCurrentUser(updatedUser);
       setUsers(prev => prev.map(u => u.id === currentUser.id ? updatedUser : u));
-      localStorage.setItem('currentUser', JSON.stringify(updatedUser));
       
-      // Update password in Firebase user devices structure
       const userRef = ref(database, `users/${currentUser.id}/password`);
       await set(userRef, newPassword);
       
-      // Update password in user profile
       const userProfileRef = ref(database, `userProfiles/${currentUser.id}/password`);
       await set(userProfileRef, newPassword);
       
-      // Update admin profile if it's an admin
       if (currentUser.role === 'admin') {
         const adminProfileRef = ref(database, `adminProfiles/${currentUser.id}/password`);
         await set(adminProfileRef, newPassword);
@@ -289,7 +387,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const deleteHome = (homeId: string) => {
-    // Remove all users from Firebase for this home
     const homeUsers = users.filter(u => u.homeId === homeId);
     homeUsers.forEach(user => {
       const userRef = ref(database, `users/${user.id}`);
@@ -316,7 +413,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { ...home, users: home.users.filter(id => id !== userId) };
     }));
 
-    // Create Firebase structure for the user
     const home = homes.find(h => h.id === homeId);
     if (home) {
       await createFirebaseUserStructure(userId, homeId, home.componentCount);
@@ -328,7 +424,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return homes.find(home => home.id === currentUser.homeId) || null;
   };
 
-  // Initialize admin profile in Firebase on component mount
   useEffect(() => {
     const initializeAdminProfile = async () => {
       const adminUser = users.find(u => u.role === 'admin');
@@ -337,19 +432,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
     
-    initializeAdminProfile().catch(console.error);
-  }, []);
+    if (isInitialized) {
+      initializeAdminProfile().catch(console.error);
+    }
+  }, [users, isInitialized]);
 
+  // Validate current user exists in users array after loading
   useEffect(() => {
-    const savedUser = localStorage.getItem('currentUser');
-    if (savedUser) {
-      const user = JSON.parse(savedUser);
-      const existingUser = users.find(u => u.id === user.id);
-      if (existingUser) {
+    if (isInitialized && currentUser) {
+      const existingUser = users.find(u => u.id === currentUser.id);
+      if (!existingUser) {
+        console.log('Current user not found in users array, logging out');
+        logout();
+      } else if (existingUser.email !== currentUser.email || existingUser.name !== currentUser.name) {
+        // Update current user if user data has changed
         setCurrentUser(existingUser);
       }
     }
-  }, [users]);
+  }, [users, currentUser, isInitialized]);
 
   const value = {
     currentUser,
