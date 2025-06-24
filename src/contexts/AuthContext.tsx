@@ -1,4 +1,7 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { ref, set, get } from 'firebase/database';
+import { database } from '@/lib/firestore';
 
 interface User {
   id: string;
@@ -31,13 +34,13 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   isAdmin: boolean;
-  addUser: (user: Omit<User, 'id'>) => void;
+  addUser: (user: Omit<User, 'id'>) => Promise<void>;
   removeUser: (userId: string) => void;
   updateUser: (userId: string, updates: Partial<User>) => void;
   changePassword: (newPassword: string) => void;
   createHome: (homeData: Omit<Home, 'id' | 'adminId' | 'users' | 'createdAt'>) => void;
   deleteHome: (homeId: string) => void;
-  assignUserToHome: (userId: string, homeId: string) => void;
+  assignUserToHome: (userId: string, homeId: string) => Promise<void>;
   getCurrentUserHome: () => Home | null;
 }
 
@@ -87,6 +90,52 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   ]);
 
+  const createFirebaseUserStructure = async (userId: string, homeId: string, componentCount: Home['componentCount']) => {
+    try {
+      const userRef = ref(database, `users/${userId}`);
+      const user = users.find(u => u.id === userId);
+      
+      if (!user) return;
+
+      // Create user data structure in Firebase
+      const userData = {
+        name: user.name,
+        email: user.email,
+        password: user.password,
+        homeId: homeId,
+        devices: {}
+      };
+
+      // Add devices based on component count
+      for (let i = 1; i <= componentCount.lamps; i++) {
+        userData.devices[`lamp${i}`] = false;
+      }
+      
+      for (let i = 1; i <= componentCount.doors; i++) {
+        userData.devices[`door${i}`] = false;
+      }
+      
+      for (let i = 1; i <= componentCount.windows; i++) {
+        userData.devices[`window${i}`] = false;
+      }
+      
+      for (let i = 1; i <= componentCount.motionSensors; i++) {
+        userData.devices[`motion${i}`] = false;
+      }
+
+      // Add environmental data
+      userData.devices['temperature'] = 25;
+      userData.devices['humidity'] = 60;
+      userData.devices['lastUpdated'] = new Date().toISOString();
+
+      await set(userRef, userData);
+      console.log(`Created Firebase structure for user ${userId}`);
+    } catch (error) {
+      console.error('Error creating Firebase user structure:', error);
+      throw error;
+    }
+  };
+
   const login = async (email: string, password: string): Promise<boolean> => {
     const user = users.find(u => u.email === email);
     if (user && user.password === password) {
@@ -102,9 +151,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('currentUser');
   };
 
-  const addUser = (userData: Omit<User, 'id'>) => {
+  const addUser = async (userData: Omit<User, 'id'>) => {
     const newUser = { ...userData, id: Date.now().toString() };
     setUsers(prev => [...prev, newUser]);
+    
+    // If user has a homeId, create Firebase structure
+    if (newUser.homeId) {
+      const home = homes.find(h => h.id === newUser.homeId);
+      if (home) {
+        await createFirebaseUserStructure(newUser.id, newUser.homeId, home.componentCount);
+      }
+    }
   };
 
   const removeUser = (userId: string) => {
@@ -112,6 +169,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     // Remove user from users array
     setUsers(prev => prev.filter(u => u.id !== userId));
+    
+    // Remove user data from Firebase
+    if (userToDelete) {
+      const userRef = ref(database, `users/${userId}`);
+      set(userRef, null).catch(console.error);
+    }
     
     // If user has a home and is the only user, delete the home
     if (userToDelete?.homeId) {
@@ -141,6 +204,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setCurrentUser(updatedUser);
       setUsers(prev => prev.map(u => u.id === currentUser.id ? updatedUser : u));
       localStorage.setItem('currentUser', JSON.stringify(updatedUser));
+      
+      // Update password in Firebase
+      const userRef = ref(database, `users/${currentUser.id}/password`);
+      set(userRef, newPassword).catch(console.error);
     }
   };
 
@@ -156,13 +223,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const deleteHome = (homeId: string) => {
+    // Remove all users from Firebase for this home
+    const homeUsers = users.filter(u => u.homeId === homeId);
+    homeUsers.forEach(user => {
+      const userRef = ref(database, `users/${user.id}`);
+      set(userRef, null).catch(console.error);
+    });
+
     setHomes(prev => prev.filter(h => h.id !== homeId));
     setUsers(prev => prev.map(user => 
       user.homeId === homeId ? { ...user, homeId: undefined } : user
     ));
   };
 
-  const assignUserToHome = (userId: string, homeId: string) => {
+  const assignUserToHome = async (userId: string, homeId: string) => {
     setUsers(prev => prev.map(user => 
       user.id === userId ? { ...user, homeId } : user
     ));
@@ -173,6 +247,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       return { ...home, users: home.users.filter(id => id !== userId) };
     }));
+
+    // Create Firebase structure for the user
+    const home = homes.find(h => h.id === homeId);
+    if (home) {
+      await createFirebaseUserStructure(userId, homeId, home.componentCount);
+    }
   };
 
   const getCurrentUserHome = (): Home | null => {

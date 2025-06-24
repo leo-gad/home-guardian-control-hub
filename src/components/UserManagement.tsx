@@ -20,7 +20,7 @@ const UserManagement: React.FC = () => {
     role: 'user' as 'admin' | 'user'
   });
 
-  const handleAddUser = (e: React.FormEvent) => {
+  const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newUser.name || !newUser.email || !newUser.password) {
       toast({
@@ -40,12 +40,20 @@ const UserManagement: React.FC = () => {
       return;
     }
 
-    addUser(newUser);
-    setNewUser({ name: '', email: '', password: '', role: 'user' });
-    toast({
-      title: "Success",
-      description: "User added successfully",
-    });
+    try {
+      await addUser(newUser);
+      setNewUser({ name: '', email: '', password: '', role: 'user' });
+      toast({
+        title: "Success",
+        description: "User added successfully with Firebase structure created",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to create user",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleRemoveUser = (userId: string) => {
@@ -60,16 +68,24 @@ const UserManagement: React.FC = () => {
     removeUser(userId);
     toast({
       title: "Success",
-      description: "User removed successfully",
+      description: "User and Firebase data removed successfully",
     });
   };
 
-  const handleAssignToHome = (userId: string, homeId: string) => {
-    assignUserToHome(userId, homeId);
-    toast({
-      title: "Success",
-      description: "User assigned to home successfully",
-    });
+  const handleAssignToHome = async (userId: string, homeId: string) => {
+    try {
+      await assignUserToHome(userId, homeId);
+      toast({
+        title: "Success",
+        description: "User assigned to home and Firebase structure created",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to assign user to home",
+        variant: "destructive",
+      });
+    }
   };
 
   const getUserHome = (userId: string) => {
@@ -139,7 +155,7 @@ const UserManagement: React.FC = () => {
               </Select>
             </div>
             <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
-              Add User
+              Add User & Create Firebase Structure
             </Button>
           </form>
         </CardContent>

@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { ref, onValue, set } from 'firebase/database';
 import { database } from '@/lib/firestore';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface DeviceData {
   temperature: number;
@@ -14,6 +15,7 @@ interface DeviceData {
 }
 
 export const useFirebaseData = () => {
+  const { currentUser } = useAuth();
   const [data, setData] = useState<DeviceData>({
     temperature: 25,
     humidity: 60,
@@ -27,28 +29,33 @@ export const useFirebaseData = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const dataRef = ref(database, '/');
+    if (!currentUser?.id) {
+      setLoading(false);
+      return;
+    }
+
+    const userRef = ref(database, `users/${currentUser.id}/devices`);
     
-    const unsubscribe = onValue(dataRef, (snapshot) => {
+    const unsubscribe = onValue(userRef, (snapshot) => {
       try {
         const firebaseData = snapshot.val();
-        console.log('Firebase data received:', firebaseData);
+        console.log('Firebase user data received:', firebaseData);
         
         if (firebaseData) {
           setData({
             temperature: firebaseData.temperature || 25,
             humidity: firebaseData.humidity || 60,
-            motion: firebaseData.motion || false,
-            door: firebaseData.door || false,
-            window: firebaseData.window || false,
-            lamp: firebaseData.lamp || false,
+            motion: firebaseData.motion1 || false,
+            door: firebaseData.door1 || false,
+            window: firebaseData.window1 || false,
+            lamp: firebaseData.lamp1 || false,
             lastUpdated: firebaseData.lastUpdated || new Date().toISOString()
           });
         }
         setLoading(false);
         setError(null);
       } catch (err) {
-        console.error('Error fetching data:', err);
+        console.error('Error fetching user data:', err);
         setError('Failed to fetch data');
         setLoading(false);
       }
@@ -59,17 +66,31 @@ export const useFirebaseData = () => {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [currentUser]);
 
   const updateDevice = async (device: string, value: boolean) => {
+    if (!currentUser?.id) {
+      throw new Error('No user logged in');
+    }
+
     try {
-      console.log(`Updating ${device} to ${value}`);
+      console.log(`Updating ${device} to ${value} for user ${currentUser.id}`);
       
-      // Update the device state
-      await set(ref(database, `/${device}`), value);
+      // Map device names to Firebase structure
+      const deviceMapping: { [key: string]: string } = {
+        'lamp': 'lamp1',
+        'door': 'door1',
+        'window': 'window1',
+        'motion': 'motion1'
+      };
+
+      const firebaseDeviceName = deviceMapping[device] || device;
+      
+      // Update the device state for the specific user
+      await set(ref(database, `users/${currentUser.id}/devices/${firebaseDeviceName}`), value);
       
       // Update the lastUpdated timestamp
-      await set(ref(database, '/lastUpdated'), new Date().toISOString());
+      await set(ref(database, `users/${currentUser.id}/devices/lastUpdated`), new Date().toISOString());
       
       // Optimistic update for immediate UI feedback
       setData(prev => ({
@@ -78,7 +99,7 @@ export const useFirebaseData = () => {
         lastUpdated: new Date().toISOString()
       }));
       
-      console.log(`Successfully updated ${device}`);
+      console.log(`Successfully updated ${device} for user ${currentUser.id}`);
     } catch (err) {
       console.error('Failed to update device:', err);
       setError('Failed to update device');
