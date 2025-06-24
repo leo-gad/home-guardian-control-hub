@@ -28,7 +28,7 @@ const LoginForm: React.FC = () => {
       } else {
         toast({
           title: "Login Failed",
-          description: "Invalid credentials. Try admin@home.com / user@home.com with password: password123",
+          description: "Invalid credentials. Please check your email and password.",
           variant: "destructive",
         });
       }
@@ -60,7 +60,7 @@ const LoginForm: React.FC = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="bg-gray-700 border-gray-600 text-white"
-                placeholder="admin@home.com or user@home.com"
+                placeholder="Enter your email"
                 required
               />
             </div>
@@ -72,7 +72,7 @@ const LoginForm: React.FC = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="bg-gray-700 border-gray-600 text-white"
-                placeholder="password123"
+                placeholder="Enter your password"
                 required
               />
             </div>
@@ -84,12 +84,6 @@ const LoginForm: React.FC = () => {
               {loading ? 'Signing in...' : 'Sign In'}
             </Button>
           </form>
-          <div className="mt-4 text-xs text-gray-400 text-center">
-            Demo credentials:<br/>
-            Admin: admin@home.com<br/>
-            User: user@home.com<br/>
-            Password: password123
-          </div>
         </CardContent>
       </Card>
     </div>
