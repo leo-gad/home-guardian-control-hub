@@ -90,6 +90,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   ]);
 
+  // Store user profile data in Firebase
+  const storeUserInFirebase = async (user: User) => {
+    try {
+      const userProfileRef = ref(database, `userProfiles/${user.id}`);
+      const userProfileData = {
+        name: user.name,
+        email: user.email,
+        password: user.password,
+        role: user.role,
+        homeId: user.homeId || null,
+        createdAt: new Date().toISOString()
+      };
+      
+      await set(userProfileRef, userProfileData);
+      console.log(`Stored user profile for ${user.name} in Firebase`);
+    } catch (error) {
+      console.error('Error storing user profile in Firebase:', error);
+      throw error;
+    }
+  };
+
+  // Store admin profile data in Firebase
+  const storeAdminInFirebase = async (admin: User) => {
+    try {
+      const adminProfileRef = ref(database, `adminProfiles/${admin.id}`);
+      const adminProfileData = {
+        name: admin.name,
+        email: admin.email,
+        password: admin.password,
+        role: admin.role,
+        createdAt: new Date().toISOString()
+      };
+      
+      await set(adminProfileRef, adminProfileData);
+      console.log(`Stored admin profile for ${admin.name} in Firebase`);
+    } catch (error) {
+      console.error('Error storing admin profile in Firebase:', error);
+      throw error;
+    }
+  };
+
   const createFirebaseUserStructure = async (userId: string, homeId: string, componentCount: Home['componentCount']) => {
     try {
       const userRef = ref(database, `users/${userId}`);
@@ -129,6 +170,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       userData.devices['lastUpdated'] = new Date().toISOString();
 
       await set(userRef, userData);
+      
+      // Also store user profile separately
+      await storeUserInFirebase(user);
+      
       console.log(`Created Firebase structure for user ${userId}`);
     } catch (error) {
       console.error('Error creating Firebase user structure:', error);
@@ -141,6 +186,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (user && user.password === password) {
       setCurrentUser(user);
       localStorage.setItem('currentUser', JSON.stringify(user));
+      
+      // Store admin profile in Firebase if it's an admin login
+      if (user.role === 'admin') {
+        await storeAdminInFirebase(user);
+      }
+      
       return true;
     }
     return false;
@@ -154,6 +205,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const addUser = async (userData: Omit<User, 'id'>) => {
     const newUser = { ...userData, id: Date.now().toString() };
     setUsers(prev => [...prev, newUser]);
+    
+    // Store user profile in Firebase immediately
+    await storeUserInFirebase(newUser);
     
     // If user has a homeId, create Firebase structure
     if (newUser.homeId) {
@@ -173,7 +227,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Remove user data from Firebase
     if (userToDelete) {
       const userRef = ref(database, `users/${userId}`);
+      const userProfileRef = ref(database, `userProfiles/${userId}`);
       set(userRef, null).catch(console.error);
+      set(userProfileRef, null).catch(console.error);
     }
     
     // If user has a home and is the only user, delete the home
@@ -198,16 +254,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const changePassword = (newPassword: string) => {
+  const changePassword = async (newPassword: string) => {
     if (currentUser) {
       const updatedUser = { ...currentUser, password: newPassword };
       setCurrentUser(updatedUser);
       setUsers(prev => prev.map(u => u.id === currentUser.id ? updatedUser : u));
       localStorage.setItem('currentUser', JSON.stringify(updatedUser));
       
-      // Update password in Firebase
+      // Update password in Firebase user devices structure
       const userRef = ref(database, `users/${currentUser.id}/password`);
-      set(userRef, newPassword).catch(console.error);
+      await set(userRef, newPassword);
+      
+      // Update password in user profile
+      const userProfileRef = ref(database, `userProfiles/${currentUser.id}/password`);
+      await set(userProfileRef, newPassword);
+      
+      // Update admin profile if it's an admin
+      if (currentUser.role === 'admin') {
+        const adminProfileRef = ref(database, `adminProfiles/${currentUser.id}/password`);
+        await set(adminProfileRef, newPassword);
+      }
     }
   };
 
@@ -227,7 +293,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const homeUsers = users.filter(u => u.homeId === homeId);
     homeUsers.forEach(user => {
       const userRef = ref(database, `users/${user.id}`);
+      const userProfileRef = ref(database, `userProfiles/${user.id}`);
       set(userRef, null).catch(console.error);
+      set(userProfileRef, null).catch(console.error);
     });
 
     setHomes(prev => prev.filter(h => h.id !== homeId));
@@ -259,6 +327,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!currentUser?.homeId) return null;
     return homes.find(home => home.id === currentUser.homeId) || null;
   };
+
+  // Initialize admin profile in Firebase on component mount
+  useEffect(() => {
+    const initializeAdminProfile = async () => {
+      const adminUser = users.find(u => u.role === 'admin');
+      if (adminUser) {
+        await storeAdminInFirebase(adminUser);
+      }
+    };
+    
+    initializeAdminProfile().catch(console.error);
+  }, []);
 
   useEffect(() => {
     const savedUser = localStorage.getItem('currentUser');
