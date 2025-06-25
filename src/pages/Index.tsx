@@ -7,6 +7,7 @@ import Dashboard from '@/pages/Dashboard';
 const Index = () => {
   const { currentUser } = useAuth();
 
+  // Always show login form first if no user is logged in
   if (!currentUser) {
     return <LoginForm />;
   }

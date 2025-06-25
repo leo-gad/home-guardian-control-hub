@@ -285,10 +285,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const updateUser = (userId: string, updates: Partial<User>) => {
+  const updateUser = async (userId: string, updates: Partial<User>) => {
     setUsers(prev => prev.map(u => u.id === userId ? { ...u, ...updates } : u));
     if (currentUser?.id === userId) {
-      setCurrentUser(prev => prev ? { ...prev, ...updates } : null);
+      const updatedUser = { ...currentUser, ...updates };
+      setCurrentUser(updatedUser);
+      
+      // Update Firebase for admin users
+      if (updatedUser.role === 'admin') {
+        await storeAdminInFirebase(updatedUser);
+      }
+      
+      // Update user profile in Firebase
+      await storeUserInFirebase(updatedUser);
     }
   };
 

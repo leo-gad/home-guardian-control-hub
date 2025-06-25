@@ -8,14 +8,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/hooks/use-toast';
-import { Settings, Palette, Lock, Trash2 } from 'lucide-react';
+import { Settings, Palette, Lock, Trash2, User } from 'lucide-react';
 
 const AdminSettings: React.FC = () => {
-  const { currentUser, changePassword, users, removeUser } = useAuth();
+  const { currentUser, changePassword, users, removeUser, updateUser } = useAuth();
   const { theme, setTheme } = useTheme();
   const { toast } = useToast();
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [newEmail, setNewEmail] = useState('');
 
   const handlePasswordChange = (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,6 +43,38 @@ const AdminSettings: React.FC = () => {
       title: "Success",
       description: "Password changed successfully",
     });
+  };
+
+  const handleEmailChange = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newEmail || !newEmail.includes('@')) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid email address",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Check if email already exists
+    const emailExists = users.some(u => u.email === newEmail && u.id !== currentUser?.id);
+    if (emailExists) {
+      toast({
+        title: "Error",
+        description: "This email is already in use",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (currentUser) {
+      updateUser(currentUser.id, { email: newEmail });
+      setNewEmail('');
+      toast({
+        title: "Success",
+        description: "Email changed successfully",
+      });
+    }
   };
 
   const handleDeleteUser = (userId: string) => {
@@ -92,8 +125,45 @@ const AdminSettings: React.FC = () => {
       <Card className="bg-gray-900 border-gray-700">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-white">
+            <User className="h-5 w-5" />
+            Change Admin Email
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleEmailChange} className="space-y-4">
+            <div>
+              <Label htmlFor="currentEmail" className="text-gray-200">Current Email</Label>
+              <Input
+                id="currentEmail"
+                type="email"
+                value={currentUser?.email || ''}
+                disabled
+                className="bg-gray-600 border-gray-500 text-gray-300"
+              />
+            </div>
+            <div>
+              <Label htmlFor="newEmail" className="text-gray-200">New Email</Label>
+              <Input
+                id="newEmail"
+                type="email"
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+                className="bg-gray-700 border-gray-600 text-white"
+                placeholder="Enter new email address"
+              />
+            </div>
+            <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
+              Change Email
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+
+      <Card className="bg-gray-900 border-gray-700">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-white">
             <Lock className="h-5 w-5" />
-            Change Password
+            Change Admin Password
           </CardTitle>
         </CardHeader>
         <CardContent>

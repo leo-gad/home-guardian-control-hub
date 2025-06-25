@@ -10,8 +10,7 @@ import EnvironmentCard from '@/components/EnvironmentCard';
 import AlertPanel from '@/components/AlertPanel';
 import DynamicAnalytics from '@/components/DynamicAnalytics';
 import DynamicStatusIndicator from '@/components/DynamicStatusIndicator';
-import DynamicAutomation from '@/components/DynamicAutomation';
-import { Home, Users, Settings, Building, User, BarChart3, Zap } from 'lucide-react';
+import { Home, Users, Settings, Building, User, BarChart3 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 // Lazy load heavy components
@@ -179,10 +178,6 @@ const Dashboard: React.FC = () => {
               <BarChart3 className="h-4 w-4 mr-2" />
               Analytics
             </TabsTrigger>
-            <TabsTrigger value="automation" className="data-[state=active]:bg-blue-600">
-              <Zap className="h-4 w-4 mr-2" />
-              Automation
-            </TabsTrigger>
             {isAdmin && (
               <>
                 <TabsTrigger value="homes" className="data-[state=active]:bg-blue-600">
@@ -253,20 +248,6 @@ const Dashboard: React.FC = () => {
                 window: data.window,
                 motion: data.motion
               }}
-            />
-          </TabsContent>
-
-          <TabsContent value="automation">
-            <DynamicAutomation
-              temperature={data.temperature}
-              humidity={data.humidity}
-              deviceStates={{
-                lamp: data.lamp,
-                door: data.door,
-                window: data.window,
-                motion: data.motion
-              }}
-              timeOfDay={timeOfDay}
             />
           </TabsContent>
 
