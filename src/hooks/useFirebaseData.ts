@@ -14,7 +14,18 @@ interface DeviceData {
   lastUpdated: string;
 }
 
+interface SensorData {
+  temperature: number;
+  humidity: number;
+  temperatureAlert: boolean;
+  humidityAlert: boolean;
+  motionAlert: boolean;
+  doorAlert: boolean;
+  windowAlert: boolean;
+}
+
 const CACHE_KEY = 'firebase_device_data';
+const SENSOR_CACHE_KEY = 'firebase_sensor_data';
 
 export const useFirebaseData = () => {
   const { currentUser } = useAuth();
@@ -27,6 +38,15 @@ export const useFirebaseData = () => {
     lamp: false,
     lastUpdated: new Date().toISOString()
   });
+  const [sensorData, setSensorData] = useState<SensorData>({
+    temperature: 25,
+    humidity: 60,
+    temperatureAlert: false,
+    humidityAlert: false,
+    motionAlert: false,
+    doorAlert: false,
+    windowAlert: false
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(true);
@@ -37,10 +57,18 @@ export const useFirebaseData = () => {
     const loadCachedData = () => {
       try {
         const cachedData = localStorage.getItem(`${CACHE_KEY}_${currentUser?.id}`);
+        const cachedSensorData = localStorage.getItem(`${SENSOR_CACHE_KEY}_${currentUser?.id}`);
+        
         if (cachedData) {
           const parsedData = JSON.parse(cachedData);
           setData(parsedData);
           console.log('Loaded cached device data:', parsedData);
+        }
+        
+        if (cachedSensorData) {
+          const parsedSensorData = JSON.parse(cachedSensorData);
+          setSensorData(parsedSensorData);
+          console.log('Loaded cached sensor data:', parsedSensorData);
         }
       } catch (err) {
         console.error('Error loading cached data:', err);
@@ -53,11 +81,14 @@ export const useFirebaseData = () => {
   }, [currentUser?.id]);
 
   // Save data to cache whenever it changes
-  const saveToCache = (deviceData: DeviceData) => {
+  const saveToCache = (deviceData: DeviceData, sensorData?: SensorData) => {
     try {
       if (currentUser?.id) {
         localStorage.setItem(`${CACHE_KEY}_${currentUser.id}`, JSON.stringify(deviceData));
-        console.log('Saved device data to cache');
+        if (sensorData) {
+          localStorage.setItem(`${SENSOR_CACHE_KEY}_${currentUser.id}`, JSON.stringify(sensorData));
+        }
+        console.log('Saved device and sensor data to cache');
       }
     } catch (err) {
       console.error('Error saving to cache:', err);
@@ -70,7 +101,7 @@ export const useFirebaseData = () => {
       return;
     }
 
-    const userRef = ref(database, `users/${currentUser.id}/devices`);
+    const userRef = ref(database, `users/${currentUser.id}`);
     
     const unsubscribe = onValue(userRef, (snapshot) => {
       try {
@@ -78,18 +109,31 @@ export const useFirebaseData = () => {
         console.log('Firebase user data received:', firebaseData);
         
         if (firebaseData) {
+          // Handle device data
           const newData = {
-            temperature: firebaseData.temperature || 25,
-            humidity: firebaseData.humidity || 60,
-            motion: firebaseData.motion1 || false,
-            door: firebaseData.door1 || false,
-            window: firebaseData.window1 || false,
-            lamp: firebaseData.lamp1 || false,
-            lastUpdated: firebaseData.lastUpdated || new Date().toISOString()
+            temperature: firebaseData.sensors?.temperature || firebaseData.devices?.temperature || 25,
+            humidity: firebaseData.sensors?.humidity || firebaseData.devices?.humidity || 60,
+            motion: firebaseData.devices?.motion1 || false,
+            door: firebaseData.devices?.door1 || false,
+            window: firebaseData.devices?.window1 || false,
+            lamp: firebaseData.devices?.lamp1 || false,
+            lastUpdated: firebaseData.devices?.lastUpdated || new Date().toISOString()
+          };
+          
+          // Handle sensor alert data
+          const newSensorData = {
+            temperature: firebaseData.sensors?.temperature || 25,
+            humidity: firebaseData.sensors?.humidity || 60,
+            temperatureAlert: firebaseData.sensors?.temperatureAlert || false,
+            humidityAlert: firebaseData.sensors?.humidityAlert || false,
+            motionAlert: firebaseData.sensors?.motionAlert || false,
+            doorAlert: firebaseData.sensors?.doorAlert || false,
+            windowAlert: firebaseData.sensors?.windowAlert || false
           };
           
           setData(newData);
-          saveToCache(newData);
+          setSensorData(newSensorData);
+          saveToCache(newData, newSensorData);
           setIsConnected(true);
         }
         setLoading(false);
@@ -152,7 +196,7 @@ export const useFirebaseData = () => {
         lastUpdated: new Date().toISOString()
       };
       setData(optimisticData);
-      saveToCache(optimisticData);
+      saveToCache(optimisticData, sensorData);
       
       // Update Firebase
       await set(ref(database, `users/${currentUser.id}/devices/${firebaseDeviceName}`), value);
@@ -180,11 +224,54 @@ export const useFirebaseData = () => {
     }
   };
 
+  const updateSensorAlert = async (alertType: keyof SensorData, value: boolean) => {
+    if (!currentUser?.id) {
+      throw new Error('No user logged in');
+    }
+
+    try {
+      console.log(`Updating ${alertType} alert to ${value} for user ${currentUser.id}`);
+      
+      // Optimistic update for immediate UI feedback
+      const optimisticSensorData = {
+        ...sensorData,
+        [alertType]: value
+      };
+      setSensorData(optimisticSensorData);
+      saveToCache(data, optimisticSensorData);
+      
+      // Update Firebase
+      await set(ref(database, `users/${currentUser.id}/sensors/${alertType}`), value);
+      
+      setIsConnected(true);
+      setError(null);
+      console.log(`Successfully updated ${alertType} alert for user ${currentUser.id}`);
+    } catch (err) {
+      console.error('Failed to update sensor alert:', err);
+      setError('Failed to update sensor alert');
+      setIsConnected(false);
+      
+      // Revert optimistic update on error
+      const cachedSensorData = localStorage.getItem(`${SENSOR_CACHE_KEY}_${currentUser.id}`);
+      if (cachedSensorData) {
+        try {
+          setSensorData(JSON.parse(cachedSensorData));
+        } catch (parseErr) {
+          console.error('Error reverting to cached sensor data:', parseErr);
+        }
+      }
+      
+      throw err;
+    }
+  };
+
   return { 
     data, 
+    sensorData,
     loading, 
     error, 
-    updateDevice, 
+    updateDevice,
+    updateSensorAlert,
     isConnected,
     lastUpdated: data.lastUpdated 
   };

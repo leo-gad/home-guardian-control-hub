@@ -85,26 +85,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUsers(parsedUsers);
         console.log('Restored users from localStorage:', parsedUsers.length);
       } else {
-        // Initialize with default data if no saved data exists
-        const defaultUsers = [
-          {
-            id: '1',
-            name: 'Admin User',
-            email: 'admin@home.com',
-            role: 'admin' as const,
-            password: 'password123'
-          },
-          {
-            id: '2', 
-            name: 'John Doe',
-            email: 'user@home.com',
-            role: 'user' as const,
-            homeId: 'home1',
-            password: 'password123'
-          }
-        ];
-        setUsers(defaultUsers);
-        localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(defaultUsers));
+        // Initialize with empty arrays - no default users
+        setUsers([]);
+        localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify([]));
       }
 
       if (savedHomes) {
@@ -112,30 +95,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setHomes(parsedHomes);
         console.log('Restored homes from localStorage:', parsedHomes.length);
       } else {
-        // Initialize with default data if no saved data exists
-        const defaultHomes = [
-          {
-            id: 'home1',
-            name: 'John\'s Smart Home',
-            adminId: '1',
-            componentCount: {
-              lamps: 3,
-              doors: 2,
-              windows: 4,
-              motionSensors: 2
-            },
-            users: ['2'],
-            createdAt: new Date().toISOString()
-          }
-        ];
-        setHomes(defaultHomes);
-        localStorage.setItem(STORAGE_KEYS.HOMES, JSON.stringify(defaultHomes));
+        // Initialize with empty arrays - no default homes
+        setHomes([]);
+        localStorage.setItem(STORAGE_KEYS.HOMES, JSON.stringify([]));
       }
 
     } catch (error) {
       console.error('Error loading data from localStorage:', error);
-      // Initialize with default data on error
-      initializeDefaultData();
+      // Initialize with empty data on error
+      setUsers([]);
+      setHomes([]);
     }
   };
 
@@ -152,46 +121,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) {
       console.error('Error saving data to localStorage:', error);
     }
-  };
-
-  // Initialize with default data
-  const initializeDefaultData = () => {
-    const defaultUsers = [
-      {
-        id: '1',
-        name: 'Admin User',
-        email: 'admin@home.com',
-        role: 'admin' as const,
-        password: 'password123'
-      },
-      {
-        id: '2', 
-        name: 'John Doe',
-        email: 'user@home.com',
-        role: 'user' as const,
-        homeId: 'home1',
-        password: 'password123'
-      }
-    ];
-
-    const defaultHomes = [
-      {
-        id: 'home1',
-        name: 'John\'s Smart Home',
-        adminId: '1',
-        componentCount: {
-          lamps: 3,
-          doors: 2,
-          windows: 4,
-          motionSensors: 2
-        },
-        users: ['2'],
-        createdAt: new Date().toISOString()
-      }
-    ];
-
-    setUsers(defaultUsers);
-    setHomes(defaultHomes);
   };
 
   // Initialize data on component mount
@@ -222,7 +151,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await set(userProfileRef, userProfileData);
       console.log(`Stored user profile for ${user.name} in Firebase`);
     } catch (error) {
-      console.error('Error storing user profile in Firebase:', error);
+      console.error('Error storing user profile in Firefox:', error);
       throw error;
     }
   };
@@ -258,7 +187,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         email: user.email,
         password: user.password,
         homeId: homeId,
-        devices: {}
+        devices: {},
+        sensors: {
+          temperature: 25,
+          humidity: 60,
+          temperatureAlert: false,
+          humidityAlert: false,
+          motionAlert: false,
+          doorAlert: false,
+          windowAlert: false
+        }
       };
 
       for (let i = 1; i <= componentCount.lamps; i++) {
@@ -277,8 +215,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         userData.devices[`motion${i}`] = false;
       }
 
-      userData.devices['temperature'] = 25;
-      userData.devices['humidity'] = 60;
       userData.devices['lastUpdated'] = new Date().toISOString();
 
       await set(userRef, userData);
@@ -423,19 +359,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!currentUser?.homeId) return null;
     return homes.find(home => home.id === currentUser.homeId) || null;
   };
-
-  useEffect(() => {
-    const initializeAdminProfile = async () => {
-      const adminUser = users.find(u => u.role === 'admin');
-      if (adminUser) {
-        await storeAdminInFirebase(adminUser);
-      }
-    };
-    
-    if (isInitialized) {
-      initializeAdminProfile().catch(console.error);
-    }
-  }, [users, isInitialized]);
 
   // Validate current user exists in users array after loading
   useEffect(() => {
