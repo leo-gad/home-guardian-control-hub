@@ -145,13 +145,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         password: user.password,
         role: user.role,
         homeId: user.homeId || null,
+        profileImage: user.profileImage || '',
         createdAt: new Date().toISOString()
       };
       
       await set(userProfileRef, userProfileData);
       console.log(`Stored user profile for ${user.name} in Firebase`);
     } catch (error) {
-      console.error('Error storing user profile in Firefox:', error);
+      console.error('Error storing user profile in Firebase:', error);
       throw error;
     }
   };
@@ -164,6 +165,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         email: admin.email,
         password: admin.password,
         role: admin.role,
+        profileImage: admin.profileImage || '',
         createdAt: new Date().toISOString()
       };
       
@@ -256,7 +258,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               name: admin.name,
               email: admin.email,
               password: admin.password,
-              role: 'admin'
+              role: 'admin',
+              profileImage: admin.profileImage || ''
             };
             
             setCurrentUser(adminUser);
@@ -288,7 +291,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               email: user.email,
               password: user.password,
               role: user.role || 'user',
-              homeId: user.homeId
+              homeId: user.homeId,
+              profileImage: user.profileImage || ''
             };
             
             setCurrentUser(regularUser);

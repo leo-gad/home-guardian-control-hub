@@ -9,6 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { User, Upload, Camera } from 'lucide-react';
+import { ref, set } from 'firebase/database';
+import { database } from '@/lib/firestore';
 
 const UserProfile: React.FC = () => {
   const { currentUser, updateUser } = useAuth();
@@ -16,9 +18,9 @@ const UserProfile: React.FC = () => {
   const [profileImage, setProfileImage] = useState(currentUser?.profileImage || '');
   const [uploading, setUploading] = useState(false);
 
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file) return;
+    if (!file || !currentUser) return;
 
     if (file.size > 5 * 1024 * 1024) {
       toast({
@@ -31,17 +33,41 @@ const UserProfile: React.FC = () => {
 
     setUploading(true);
     const reader = new FileReader();
-    reader.onload = (e) => {
-      const result = e.target?.result as string;
-      setProfileImage(result);
-      if (currentUser) {
+    reader.onload = async (e) => {
+      try {
+        const result = e.target?.result as string;
+        setProfileImage(result);
+        
+        // Update local user data
         updateUser(currentUser.id, { profileImage: result });
+        
+        // Store image directly in Firebase based on user role
+        if (currentUser.role === 'admin') {
+          const adminProfileRef = ref(database, `adminProfiles/${currentUser.id}/profileImage`);
+          await set(adminProfileRef, result);
+        } else {
+          const userProfileRef = ref(database, `userProfiles/${currentUser.id}/profileImage`);
+          await set(userProfileRef, result);
+          
+          // Also update in users collection if it exists
+          const userRef = ref(database, `users/${currentUser.id}/profileImage`);
+          await set(userRef, result);
+        }
+        
         toast({
           title: "Success",
-          description: "Profile image updated successfully",
+          description: "Profile image updated successfully in Firebase",
         });
+      } catch (error) {
+        console.error('Error uploading profile image:', error);
+        toast({
+          title: "Error",
+          description: "Failed to update profile image",
+          variant: "destructive",
+        });
+      } finally {
+        setUploading(false);
       }
-      setUploading(false);
     };
     reader.readAsDataURL(file);
   };
@@ -87,7 +113,7 @@ const UserProfile: React.FC = () => {
             </div>
             
             {uploading && (
-              <p className="text-gray-400 text-sm">Uploading image...</p>
+              <p className="text-gray-400 text-sm">Uploading image to Firebase...</p>
             )}
           </div>
 
