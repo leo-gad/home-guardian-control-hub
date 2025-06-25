@@ -155,7 +155,7 @@ const UserManagement: React.FC = () => {
               </Select>
             </div>
             <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
-              Add User & Create Firebase Structure
+              Add user
             </Button>
           </form>
         </CardContent>
