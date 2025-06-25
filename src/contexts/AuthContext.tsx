@@ -228,17 +228,89 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const login = async (email: string, password: string): Promise<boolean> => {
-    const user = users.find(u => u.email === email);
-    if (user && user.password === password) {
-      setCurrentUser(user);
-      
-      if (user.role === 'admin') {
-        await storeAdminInFirebase(user);
+    try {
+      // First check local users array
+      const localUser = users.find(u => u.email === email && u.password === password);
+      if (localUser) {
+        setCurrentUser(localUser);
+        
+        if (localUser.role === 'admin') {
+          await storeAdminInFirebase(localUser);
+        }
+        
+        console.log('Login successful with local user:', localUser.email);
+        return true;
       }
+
+      // Check admin profiles in Firebase
+      const adminProfilesRef = ref(database, 'adminProfiles');
+      const adminSnapshot = await get(adminProfilesRef);
       
-      return true;
+      if (adminSnapshot.exists()) {
+        const adminProfiles = adminSnapshot.val();
+        for (const [adminId, adminData] of Object.entries(adminProfiles)) {
+          const admin = adminData as any;
+          if (admin.email === email && admin.password === password) {
+            const adminUser: User = {
+              id: adminId,
+              name: admin.name,
+              email: admin.email,
+              password: admin.password,
+              role: 'admin'
+            };
+            
+            setCurrentUser(adminUser);
+            
+            // Add to local users if not already present
+            const existingUser = users.find(u => u.id === adminId);
+            if (!existingUser) {
+              setUsers(prev => [...prev, adminUser]);
+            }
+            
+            console.log('Login successful with Firebase admin:', adminUser.email);
+            return true;
+          }
+        }
+      }
+
+      // Check user profiles in Firebase
+      const userProfilesRef = ref(database, 'userProfiles');
+      const userSnapshot = await get(userProfilesRef);
+      
+      if (userSnapshot.exists()) {
+        const userProfiles = userSnapshot.val();
+        for (const [userId, userData] of Object.entries(userProfiles)) {
+          const user = userData as any;
+          if (user.email === email && user.password === password) {
+            const regularUser: User = {
+              id: userId,
+              name: user.name,
+              email: user.email,
+              password: user.password,
+              role: user.role || 'user',
+              homeId: user.homeId
+            };
+            
+            setCurrentUser(regularUser);
+            
+            // Add to local users if not already present
+            const existingUser = users.find(u => u.id === userId);
+            if (!existingUser) {
+              setUsers(prev => [...prev, regularUser]);
+            }
+            
+            console.log('Login successful with Firebase user:', regularUser.email);
+            return true;
+          }
+        }
+      }
+
+      console.log('Login failed: Invalid credentials');
+      return false;
+    } catch (error) {
+      console.error('Login error:', error);
+      return false;
     }
-    return false;
   };
 
   const logout = () => {
